@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For M & D</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;600&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050005; /* Very dark purple/black */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Pacifico', cursive;
+        }
+
+        canvas {
+            position: absolute;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 2s ease;
+        }
+
+        #text-container {
+            position: absolute;
+            z-index: 2;
+            color: #ffccdd;
+            font-size: 4rem;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: opacity 2s ease, transform 2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-shadow: 0 0 10px #ff0055, 0 0 20px #ff0055, 0 0 40px #ff0055;
+            pointer-events: none;
+        }
+
+        .show-text {
+            opacity: 1 !important;
+            transform: scale(1) !important;
+        }
+
+        .show-canvas {
+            opacity: 1 !important;
+        }
+
+        .heartbeat {
+            animation: beat 1.2s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+        }
+
+        @keyframes beat {
+            0% { transform: scale(1); }
+            14% { transform: scale(1.05); }
+            28% { transform: scale(1); }
+            42% { transform: scale(1.05); }
+            70% { transform: scale(1); }
+        }
+
+        /* Proposal UI */
+        #proposal-container {
+            position: absolute;
+            z-index: 10;
+            text-align: center;
+            color: #ffccdd;
+            font-family: 'Poppins', sans-serif;
+            transition: opacity 1s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        #cat-img {
+            width: 200px;
+            height: auto;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        h1 {
+            font-family: 'Pacifico', cursive;
+            font-size: 3.5rem;
+            margin: 0;
+            text-shadow: 0 0 10px #ff0055;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            height: 60px;
+            width: 100%;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+        }
+
+        #yes-btn {
+            background: linear-gradient(45deg, #ff0055, #ff5588);
+            color: white;
+            box-shadow: 0 5px 15px rgba(255, 0, 85, 0.4);
+            z-index: 20; /* Ensure clickable */
+        }
+
+        #yes-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 20px rgba(255, 0, 85, 0.6);
+        }
+
+        #no-btn {
+            background: #444;
+            color: #aaa;
+            position: relative; 
+        }
+
+        /* Confetti Canvas */
+        #confettiCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+    </style>
+</head>
+<body>
+    <!-- Confetti Layer -->
+    <canvas id="confettiCanvas"></canvas>
+
+    <!-- Proposal UI -->
+    <div id="proposal-container">
+        <!-- Cat Image -->
+        <img id="cat-img" src="mr beluga.gif" alt="Cute Cat">
+        <h1>Do you love me?</h1>
+        <div class="btn-group">
+            <button id="yes-btn">Yes ❤️</button>
+            <button id="no-btn">No</button>
+        </div>
+    </div>
+
+    <!-- Animation Elements -->
+    <canvas id="bgCanvas"></canvas>
+    <canvas id="heartCanvas"></canvas>
+    <div id="text-container">M & D</div>
+
+    <script>
+        const heartCanvas = document.getElementById('heartCanvas');
+        const bgCanvas = document.getElementById('bgCanvas');
+        const confettiCanvas = document.getElementById('confettiCanvas');
+        const hCtx = heartCanvas.getContext('2d');
+        const bCtx = bgCanvas.getContext('2d');
+        const cCtx = confettiCanvas.getContext('2d');
+        
+        const textContainer = document.getElementById('text-container');
+        const proposalContainer = document.getElementById('proposal-container');
+        const yesBtn = document.getElementById('yes-btn');
+        const noBtn = document.getElementById('no-btn');
+
+        let width, height;
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            heartCanvas.width = width;
+            heartCanvas.height = height;
+            bgCanvas.width = width;
+            bgCanvas.height = height;
+            confettiCanvas.width = width;
+            confettiCanvas.height = height;
+            hCtx.translate(width / 2, height / 2);
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- Proposal Logic ---
+        noBtn.addEventListener('mouseover', moveNoButton);
+        noBtn.addEventListener('touchstart', moveNoButton);
+
+        function moveNoButton(e) {
+            if(e) e.preventDefault();
+            noBtn.style.position = 'fixed';
+            const btnWidth = noBtn.offsetWidth;
+            const btnHeight = noBtn.offsetHeight;
+            const padding = 50;
+            const maxLeft = width - btnWidth - padding;
+            const maxTop = height - btnHeight - padding;
+            const newLeft = padding + Math.random() * (maxLeft - padding);
+            const newTop = padding + Math.random() * (maxTop - padding);
+            noBtn.style.left = newLeft + 'px';
+            noBtn.style.top = newTop + 'px';
+        }
+
+        yesBtn.addEventListener('click', () => {
+            // Trigger Confetti
+            explodeConfetti();
+            
+            // Hide proposal
+            proposalContainer.style.opacity = '0';
+            setTimeout(() => {
+                proposalContainer.style.display = 'none';
+                startAnimation();
+            }, 1000);
+        });
+
+        // --- Confetti Logic ---
+        const confettiParticles = [];
+        
+        function explodeConfetti() {
+            const colors = ['#ff0055', '#ffccdd', '#ffffff', '#ffd700', '#00ffff'];
+            for (let i = 0; i < 150; i++) {
+                confettiParticles.push({
+                    x: width / 2,
+                    y: height / 2,
+                    r: Math.random() * 6 + 2,
+                    dx: (Math.random() - 0.5) * 20,
+                    dy: (Math.random() - 0.5) * 20,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    tilt: Math.random() * 10,
+                    tiltAngle: Math.random() * 10,
+                    tiltAngleIncremental: Math.random() * 0.07 + 0.05
+                });
+            }
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            cCtx.clearRect(0, 0, width, height);
+            let active = false;
+            
+            for (let i = 0; i < confettiParticles.length; i++) {
+                const p = confettiParticles[i];
+                p.tiltAngle += p.tiltAngleIncremental;
+                p.y += (Math.cos(p.tiltAngle) + 1 + p.r / 2) / 2;
+                p.x += Math.sin(p.tiltAngle) * 2;
+                p.y += 2; // Gravity
+                
+                // Friction
+                p.dx *= 0.96;
+                p.dy *= 0.96;
+                p.x += p.dx;
+                p.y += p.dy;
+
+                if (p.y < height) active = true;
+
+                cCtx.beginPath();
+                cCtx.lineWidth = p.r / 2;
+                cCtx.strokeStyle = p.color;
+                cCtx.moveTo(p.x + p.tilt + p.r / 4, p.y);
+                cCtx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 4);
+                cCtx.stroke();
+            }
+
+            if (active) {
+                requestAnimationFrame(animateConfetti);
+            } else {
+                cCtx.clearRect(0, 0, width, height);
+            }
+        }
+
+        // --- Heart Animation Logic ---
+        function heartX(t) { return 15 * Math.pow(Math.sin(t), 3); }
+        function heartY(t) { return 12 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t); }
+
+        const SCALE = 15;
+        const SPEED = 0.005;
+        const TOTAL_RADIANS = 2 * Math.PI;
+        
+        let t = 0;
+        const points = [];
+        const stars = [];
+        const particles = [];
+        let animationId;
+
+        // Background Stars
+        for(let i=0; i<100; i++) {
+            stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                size: Math.random() * 2,
+                blinkSpeed: 0.01 + Math.random() * 0.05,
+                alpha: Math.random(),
+                dir: 1
+            });
+        }
+
+        function drawStars() {
+            bCtx.clearRect(0, 0, width, height);
+            bCtx.fillStyle = "white";
+            stars.forEach(star => {
+                star.alpha += star.blinkSpeed * star.dir;
+                if(star.alpha > 1) { star.alpha = 1; star.dir = -1; }
+                if(star.alpha < 0) { star.alpha = 0; star.dir = 1; }
+                
+                bCtx.globalAlpha = star.alpha;
+                bCtx.beginPath();
+                bCtx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                bCtx.fill();
+            });
+            requestAnimationFrame(drawStars);
+        }
+        drawStars();
+
+        function spawnParticle(x, y) {
+            for(let i=0; i<3; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    life: 1,
+                    color: `hsl(${340 + Math.random()*20}, 100%, 70%)`
+                });
+            }
+        }
+
+        function updateParticles() {
+            for(let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                if(p.life <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    hCtx.globalAlpha = p.life;
+                    hCtx.fillStyle = p.color;
+                    hCtx.beginPath();
+                    hCtx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+                    hCtx.fill();
+                }
+            }
+            hCtx.globalAlpha = 1;
+        }
+
+        function animateHeartRefined() {
+            if (t > TOTAL_RADIANS) {
+                cancelAnimationFrame(animationId);
+                finishAnimation();
+                return;
+            }
+
+            hCtx.clearRect(-width/2, -height/2, width, height);
+
+            const x = heartX(t) * SCALE;
+            const y = -heartY(t) * SCALE;
+            points.push({x, y});
+
+            hCtx.beginPath();
+            hCtx.strokeStyle = '#ff0055';
+            hCtx.lineWidth = 3;
+            hCtx.lineCap = 'round';
+            hCtx.lineJoin = 'round';
+            hCtx.shadowColor = '#ff0055';
+            hCtx.shadowBlur = 15;
+
+            if(points.length > 0) {
+                hCtx.moveTo(points[0].x, points[0].y);
+                for(let i=1; i<points.length; i++) {
+                    hCtx.lineTo(points[i].x, points[i].y);
+                }
+            }
+            hCtx.stroke();
+
+            spawnParticle(x, y);
+            updateParticles();
+
+            t += SPEED;
+            animationId = requestAnimationFrame(animateHeartRefined);
+        }
+
+        function finishAnimation() {
+            textContainer.classList.add('show-text');
+            heartCanvas.classList.add('heartbeat');
+        }
+
+        function startAnimation() {
+            heartCanvas.classList.add('show-canvas');
+            animateHeartRefined();
+        }
+
+    </script>
+</body>
+</html>
